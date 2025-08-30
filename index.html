@@ -1,0 +1,139 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>WebRTC SDP Exchange & Chat</title>
+	<style>
+		body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+		h2 { margin-top: 30px; }
+		textarea { width: 100%; height: 100px; margin-bottom: 10px; }
+		button { margin: 5px 0; }
+		#chat { border: 1px solid #ccc; background: #fff; padding: 10px; height: 200px; overflow-y: auto; margin-bottom: 10px; }
+		#message { width: 80%; }
+	</style>
+</head>
+<body>
+	<h1>WebRTC SDP Exchange & Chat</h1>
+	<div>
+		<h2>Step 1: Create Offer</h2>
+		<button id="createOffer">Create Offer</button>
+		<textarea id="localOffer" readonly placeholder="Local SDP Offer"></textarea>
+		<button id="copyOffer">Copy Offer</button>
+	</div>
+	<div>
+		<h2>Step 2: Paste Remote Answer</h2>
+		<textarea id="remoteAnswer" placeholder="Paste remote SDP answer here"></textarea>
+		<button id="setRemoteAnswer">Set Remote Answer</button>
+	</div>
+	<div>
+		<h2>Step 1b: Paste Remote Offer</h2>
+		<textarea id="remoteOffer" placeholder="Paste remote SDP offer here"></textarea>
+		<button id="setRemoteOffer">Set Remote Offer</button>
+	</div>
+	<div>
+		<h2>Step 2b: Create Answer</h2>
+		<button id="createAnswer">Create Answer</button>
+		<textarea id="localAnswer" readonly placeholder="Local SDP Answer"></textarea>
+		<button id="copyAnswer">Copy Answer</button>
+	</div>
+	<div>
+		<h2>Chat</h2>
+		<div id="chat"></div>
+		<input type="text" id="message" placeholder="Type a message..." />
+		<button id="send">Send</button>
+	</div>
+
+	<script>
+	// Google's public STUN server
+	const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+	let pc = null;
+	let dataChannel = null;
+	let isOfferer = false;
+
+	function logChat(msg, isLocal) {
+		const chat = document.getElementById('chat');
+		const div = document.createElement('div');
+		div.textContent = (isLocal ? 'Me: ' : 'Peer: ') + msg;
+		div.style.textAlign = isLocal ? 'right' : 'left';
+		chat.appendChild(div);
+		chat.scrollTop = chat.scrollHeight;
+	}
+
+	function setupPeerConnection() {
+		pc = new RTCPeerConnection(rtcConfig);
+		pc.onicecandidate = e => {
+			if (e.candidate) return;
+			// ICE gathering complete, update SDP
+			if (isOfferer) {
+				document.getElementById('localOffer').value = pc.localDescription.sdp;
+			} else {
+				document.getElementById('localAnswer').value = pc.localDescription.sdp;
+			}
+		};
+		pc.ondatachannel = e => {
+			dataChannel = e.channel;
+			setupDataChannel();
+		};
+	}
+
+	function setupDataChannel() {
+		dataChannel.onopen = () => {
+			document.getElementById('send').disabled = false;
+		};
+		dataChannel.onmessage = e => {
+			logChat(e.data, false);
+		};
+	}
+
+	document.getElementById('createOffer').onclick = async () => {
+		isOfferer = true;
+		setupPeerConnection();
+		dataChannel = pc.createDataChannel('chat');
+		setupDataChannel();
+		const offer = await pc.createOffer();
+		await pc.setLocalDescription(offer);
+		// SDP will be set after ICE gathering
+	};
+
+	document.getElementById('copyOffer').onclick = () => {
+		navigator.clipboard.writeText(document.getElementById('localOffer').value);
+	};
+
+	document.getElementById('setRemoteAnswer').onclick = async () => {
+		const sdp = document.getElementById('remoteAnswer').value;
+		if (!pc) return alert('Create offer first!');
+		await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp }));
+	};
+
+	document.getElementById('setRemoteOffer').onclick = async () => {
+		isOfferer = false;
+		setupPeerConnection();
+		const sdp = document.getElementById('remoteOffer').value;
+		await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+	};
+
+	document.getElementById('createAnswer').onclick = async () => {
+		if (!pc) return alert('Paste remote offer first!');
+		const answer = await pc.createAnswer();
+		await pc.setLocalDescription(answer);
+		// SDP will be set after ICE gathering
+	};
+
+	document.getElementById('copyAnswer').onclick = () => {
+		navigator.clipboard.writeText(document.getElementById('localAnswer').value);
+	};
+
+	document.getElementById('send').onclick = () => {
+		const msg = document.getElementById('message').value;
+		if (dataChannel && dataChannel.readyState === 'open') {
+			dataChannel.send(msg);
+			logChat(msg, true);
+			document.getElementById('message').value = '';
+		}
+	};
+	document.getElementById('send').disabled = true;
+	</script>
+</body>
+</html>
