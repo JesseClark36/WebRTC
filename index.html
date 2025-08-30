@@ -3,46 +3,137 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 	<title>WebRTC SDP Exchange & Chat</title>
 	<style>
-		body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
-		h2 { margin-top: 30px; }
-		textarea { width: 100%; height: 100px; margin-bottom: 10px; }
-		button { margin: 5px 0; }
-		#chat { border: 1px solid #ccc; background: #fff; padding: 10px; height: 200px; overflow-y: auto; margin-bottom: 10px; }
-		#message { width: 80%; }
+		body {
+			font-family: Arial, sans-serif;
+			margin: 0;
+			padding: 0;
+			background: #f7f7f7;
+		}
+		.container {
+			max-width: 600px;
+			margin: 0 auto;
+			padding: 20px;
+		}
+		h1 {
+			font-size: 1.7em;
+			margin-bottom: 20px;
+			text-align: center;
+		}
+		h2 {
+			margin-top: 30px;
+			font-size: 1.1em;
+		}
+		textarea {
+			width: 100%;
+			min-height: 80px;
+			max-height: 200px;
+			margin-bottom: 10px;
+			font-size: 1em;
+			padding: 8px;
+			box-sizing: border-box;
+			border-radius: 6px;
+			border: 1px solid #ccc;
+			resize: vertical;
+		}
+		button {
+			margin: 5px 0;
+			padding: 8px 16px;
+			font-size: 1em;
+			border-radius: 6px;
+			border: none;
+			background: #1976d2;
+			color: #fff;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+		button:disabled {
+			background: #aaa;
+			cursor: not-allowed;
+		}
+		button:hover:not(:disabled) {
+			background: #1565c0;
+		}
+		#chat {
+			border: 1px solid #ccc;
+			background: #fff;
+			padding: 10px;
+			height: 160px;
+			overflow-y: auto;
+			margin-bottom: 10px;
+			border-radius: 6px;
+			font-size: 1em;
+		}
+		#chat div {
+			margin-bottom: 4px;
+		}
+		.chat-input-row {
+			display: flex;
+			gap: 8px;
+		}
+		#message {
+			flex: 1;
+			font-size: 1em;
+			padding: 8px;
+			border-radius: 6px;
+			border: 1px solid #ccc;
+			box-sizing: border-box;
+		}
+		@media (max-width: 700px) {
+			.container {
+				max-width: 100%;
+				padding: 10px;
+			}
+			h1 {
+				font-size: 1.2em;
+			}
+			h2 {
+				font-size: 1em;
+			}
+			#chat {
+				height: 120px;
+			}
+			button, #message, textarea {
+				font-size: 0.95em;
+			}
+		}
 	</style>
 </head>
 <body>
-	<h1>WebRTC SDP Exchange & Chat</h1>
-	<div>
-		<h2>Step 1: Create Offer</h2>
-		<button id="createOffer">Create Offer</button>
-		<textarea id="localOffer" readonly placeholder="Local SDP Offer"></textarea>
-		<button id="copyOffer">Copy Offer</button>
-	</div>
-	<div>
-		<h2>Step 2: Paste Remote Answer</h2>
-		<textarea id="remoteAnswer" placeholder="Paste remote SDP answer here"></textarea>
-		<button id="setRemoteAnswer">Set Remote Answer</button>
-	</div>
-	<div>
-		<h2>Step 1b: Paste Remote Offer</h2>
-		<textarea id="remoteOffer" placeholder="Paste remote SDP offer here"></textarea>
-		<button id="setRemoteOffer">Set Remote Offer</button>
-	</div>
-	<div>
-		<h2>Step 2b: Create Answer</h2>
-		<button id="createAnswer">Create Answer</button>
-		<textarea id="localAnswer" readonly placeholder="Local SDP Answer"></textarea>
-		<button id="copyAnswer">Copy Answer</button>
-	</div>
-	<div>
-		<h2>Chat</h2>
-		<div id="chat"></div>
-		<input type="text" id="message" placeholder="Type a message..." />
-		<button id="send">Send</button>
+	<div class="container">
+		<h1>WebRTC SDP Exchange & Chat</h1>
+		<div>
+			<h2>Step 1: (Local) Create Offer</h2>
+			<button id="createOffer">Create Offer</button>
+			<textarea id="localOffer" readonly placeholder="Local SDP Offer"></textarea>
+			<button id="copyOffer">Copy Offer</button>
+		</div>
+		<div>
+			<h2>Step 2: (Remote) Paste Remote Offer</h2>
+			<textarea id="remoteOffer" placeholder="Paste remote SDP offer here"></textarea>
+			<button id="setRemoteOffer">Set Remote Offer</button>
+		</div>
+		<div>
+			<h2>Step 3: (Remote) Create Answer</h2>
+			<button id="createAnswer">Create Answer</button>
+			<textarea id="localAnswer" readonly placeholder="Local SDP Answer"></textarea>
+			<button id="copyAnswer">Copy Answer</button>
+		</div>
+		<div>
+			<h2>Step 4: (Local) Paste Remote Answer</h2>
+			<textarea id="remoteAnswer" placeholder="Paste remote SDP answer here"></textarea>
+			<button id="setRemoteAnswer">Set Remote Answer</button>
+		</div>
+		<div>
+			<h2>Chat</h2>
+			<div id="chat"></div>
+			<div class="chat-input-row">
+				<input type="text" id="message" placeholder="Type a message..." />
+				<button id="send">Send</button>
+			</div>
+		</div>
 	</div>
 
 	<script>
@@ -125,14 +216,21 @@
 		navigator.clipboard.writeText(document.getElementById('localAnswer').value);
 	};
 
-	document.getElementById('send').onclick = () => {
+	function sendMessage() {
 		const msg = document.getElementById('message').value;
-		if (dataChannel && dataChannel.readyState === 'open') {
+		if (dataChannel && dataChannel.readyState === 'open' && msg.trim() !== '') {
 			dataChannel.send(msg);
 			logChat(msg, true);
 			document.getElementById('message').value = '';
 		}
-	};
+	}
+	document.getElementById('send').onclick = sendMessage;
+	document.getElementById('message').addEventListener('keydown', function(e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			sendMessage();
+		}
+	});
 	document.getElementById('send').disabled = true;
 	</script>
 </body>
