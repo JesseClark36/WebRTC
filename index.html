@@ -108,7 +108,10 @@
 			<h2>Step 1: (Local) Create Offer</h2>
 			<button id="createOffer">Create Offer</button>
 			<textarea id="localOffer" readonly placeholder="Local SDP Offer"></textarea>
-			<button id="copyOffer">Copy Offer</button>
+			<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+				<button id="copyOffer">Copy Offer</button>
+				<button id="shareOffer">Share</button>
+			</div>
 		</div>
 		<div>
 			<h2>Step 2: (Remote) Paste Remote Offer</h2>
@@ -119,7 +122,10 @@
 			<h2>Step 3: (Remote) Create Answer</h2>
 			<button id="createAnswer">Create Answer</button>
 			<textarea id="localAnswer" readonly placeholder="Local SDP Answer"></textarea>
-			<button id="copyAnswer">Copy Answer</button>
+			<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+				<button id="copyAnswer">Copy Answer</button>
+				<button id="shareAnswer">Share</button>
+			</div>
 		</div>
 		<div>
 			<h2>Step 4: (Local) Paste Remote Answer</h2>
@@ -191,6 +197,10 @@
 	document.getElementById('copyOffer').onclick = () => {
 		navigator.clipboard.writeText(document.getElementById('localOffer').value);
 	};
+	document.getElementById('shareOffer').onclick = () => {
+		const sdp = document.getElementById('localOffer').value;
+		shareSDP(sdp, 'SDP Offer');
+	};
 
 	document.getElementById('setRemoteAnswer').onclick = async () => {
 		const sdp = document.getElementById('remoteAnswer').value;
@@ -215,6 +225,10 @@
 	document.getElementById('copyAnswer').onclick = () => {
 		navigator.clipboard.writeText(document.getElementById('localAnswer').value);
 	};
+	document.getElementById('shareAnswer').onclick = () => {
+		const sdp = document.getElementById('localAnswer').value;
+		shareSDP(sdp, 'SDP Answer');
+	};
 
 	function sendMessage() {
 		const msg = document.getElementById('message').value;
@@ -232,6 +246,21 @@
 		}
 	});
 	document.getElementById('send').disabled = true;
+
+	function shareSDP(text, label) {
+		const shareData = {
+			text: text
+		};
+		// Check for Web Share API support
+		if (typeof navigator.share === 'function') {
+			navigator.share(shareData)
+				.catch((err) => {
+					// User cancelled or error
+				});
+		} else {
+			alert('Sharing is only supported on mobile browsers. Please copy and paste manually.');
+		}
+	}
 	</script>
 </body>
 </html>
